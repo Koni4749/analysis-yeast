@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>효모–유산균 항종양 모사 실험 | 12시간 수리모델링 분석기</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-org">인천대학교 수학교육과</span>
+        <h1 class="brand-title">효모–유산균 항종양 모사 실험 · 12시간 수리모델링 분석기</h1>
+      </div>
+      <div class="topbar-actions">
+        <span class="save-status" id="saveIndicator" aria-live="polite">임시 저장됨</span>
+        <button type="button" class="btn-text" id="btnResetTeam">입력 초기화</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <!-- 좌측 고정 입력 사이드바 -->
+    <aside class="sidebar" aria-label="실험 데이터 입력">
+      <!-- 1. 우리 조 정보 및 사용한 약물 -->
+      <section class="side-section">
+        <h2 class="side-heading">우리 조 정보</h2>
+        <div class="field-stack">
+          <label class="field field-compact">
+            <span>조</span>
+            <input
+              type="text"
+              id="inputTeamName"
+              placeholder="예: 3조"
+              maxlength="20"
+              autocomplete="off"
+            />
+          </label>
+          <label class="field">
+            <span>이름</span>
+            <input
+              type="text"
+              id="inputMemberNames"
+              placeholder="예: 김철수, 김영희"
+              maxlength="120"
+              autocomplete="off"
+            />
+          </label>
+        </div>
+
+        <div class="drug-block">
+          <div class="sub-head">
+            <span>사용한 약물</span>
+            <button type="button" class="btn-link" id="btnAddDrug">+ 약물 추가</button>
+          </div>
+          <div class="drug-list" id="drugList"></div>
+        </div>
+      </section>
+
+      <!-- 2. 측정값 입력 -->
+      <section class="side-section">
+        <h2 class="side-heading">측정값 입력 (0h · 12h)</h2>
+
+        <div class="measure-group">
+          <div class="sub-head">
+            <span>기체 발생 (효모 · CO₂)</span>
+            <strong class="inline-val gas" id="calcGasDelta">ΔV 510.0 mL</strong>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              <span>시작 눈금 V₀ (mL)</span>
+              <input
+                type="number"
+                id="inputGasStart"
+                step="5"
+                min="0"
+                max="1000"
+                inputmode="decimal"
+              />
+            </label>
+            <label class="field">
+              <span>최종 눈금 V₁₂ (mL)</span>
+              <input
+                type="number"
+                id="inputGasEnd"
+                step="5"
+                min="0"
+                max="1000"
+                inputmode="decimal"
+              />
+            </label>
+          </div>
+          <p class="field-hint">
+            누적 부피만 있을 때는 시작 눈금에 <code>0</code>, 최종 눈금에 누적 부피를 입력합니다.
+          </p>
+          <p class="field-alert" id="gasAlert" hidden></p>
+        </div>
+
+        <div class="measure-group">
+          <div class="sub-head">
+            <span>산성화 (유산균 · pH)</span>
+            <strong class="inline-val ph" id="calcPhDelta">ΔpH 1.40</strong>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              <span>시작 pH (0h)</span>
+              <input
+                type="number"
+                id="inputPhStart"
+                step="0.01"
+                min="0"
+                max="14"
+                inputmode="decimal"
+              />
+            </label>
+            <label class="field">
+              <span>최종 pH (12h)</span>
+              <input
+                type="number"
+                id="inputPhEnd"
+                step="0.01"
+                min="0"
+                max="14"
+                inputmode="decimal"
+              />
+            </label>
+          </div>
+          <p class="field-alert" id="phAlert" hidden></p>
+        </div>
+      </section>
+
+      <!-- 3. 공통 무처리군 기준값 -->
+      <section class="side-section">
+        <div class="sub-head">
+          <h2 class="side-heading">공통 무처리군 기준값</h2>
+          <span class="modified-note" id="controlStatusNote" hidden>수정됨</span>
+        </div>
+
+        <dl class="baseline-dl">
+          <div class="baseline-row">
+            <dt>기체 (ΔV)</dt>
+            <dd id="ctrlGasSummary">50 → 800 mL (<strong>750 mL</strong>)</dd>
+          </div>
+          <div class="baseline-row">
+            <dt>pH (ΔpH)</dt>
+            <dd id="ctrlPhSummary">6.55 → 4.35 (<strong>2.20</strong>)</dd>
+          </div>
+        </dl>
+
+        <details class="baseline-details" id="controlDetails">
+          <summary>기준 배합 확인 · 값 조정</summary>
+          <div class="details-body">
+            <p class="basis-note" id="ctrlBasisText"></p>
+            <div class="field-grid">
+              <label class="field">
+                <span>무처리 V₀ (mL)</span>
+                <input type="number" id="ctrlGasStart" step="5" min="0" max="1000" />
+              </label>
+              <label class="field">
+                <span>무처리 V₁₂ (mL)</span>
+                <input type="number" id="ctrlGasEnd" step="5" min="0" max="1000" />
+              </label>
+              <label class="field">
+                <span>무처리 pH₀</span>
+                <input type="number" id="ctrlPhStart" step="0.01" min="0" max="14" />
+              </label>
+              <label class="field">
+                <span>무처리 pH₁₂</span>
+                <input type="number" id="ctrlPhEnd" step="0.01" min="0" max="14" />
+              </label>
+            </div>
+            <button type="button" class="btn-outline btn-sm" id="btnResetControl">
+              기본 기준값으로 복원
+            </button>
+          </div>
+        </details>
+      </section>
+    </aside>
+
+    <!-- 우측 메인 분석 시트 -->
+    <main class="main-sheet">
+      <!-- 핵심 수치 요약 행 -->
+      <section class="summary-ledger" aria-label="실험 결과 요약">
+        <div class="ledger-item">
+          <span class="ledger-label">누적 기체 부피 (ΔV)</span>
+          <strong class="ledger-value" id="kpiGasDelta">510.0 mL</strong>
+          <span class="ledger-sub" id="kpiGasRange">V₀ 50 → V₁₂ 560 mL</span>
+        </div>
+        <div class="ledger-item">
+          <span class="ledger-label">무처리군 대비 기체 비율</span>
+          <strong class="ledger-value accent-gas" id="kpiGasRatio">68.0%</strong>
+          <span class="ledger-sub" id="kpiGasRatioSub">무처리군 750.0 mL 기준</span>
+        </div>
+        <div class="ledger-item">
+          <span class="ledger-label">pH 변화량 (ΔpH)</span>
+          <strong class="ledger-value accent-ph" id="kpiPhDelta">1.40</strong>
+          <span class="ledger-sub" id="kpiPhRange">pH₀ 6.55 → pH₁₂ 5.15</span>
+        </div>
+        <div class="ledger-item">
+          <span class="ledger-label">무처리군 대비 산성화</span>
+          <strong class="ledger-value" id="kpiPhCompare">작음</strong>
+          <span class="ledger-sub" id="kpiPhCompareSub">무처리군보다 0.80 덜 감소</span>
+        </div>
+      </section>
+
+      <!-- 분석 섹션 A: 기체 발생 (CO2) -->
+      <section class="analysis-block" id="gasSection" aria-labelledby="gasHeading">
+        <div class="block-header">
+          <div>
+            <span class="block-kicker gas">정상세포 모사 · 효모 발효</span>
+            <h2 id="gasHeading">기체 발생 (CO₂) 0~12시간 모델링</h2>
+          </div>
+          <div class="block-actions">
+            <button type="button" class="btn-primary" id="btnExportGasPng">
+              기체 그래프 PNG 저장
+            </button>
+          </div>
+        </div>
+
+        <div class="model-selector-row">
+          <div class="segmented" id="gasCoreTabs" role="radiogroup" aria-label="기체 모델 핵심 방정식"></div>
+          <div class="segmented secondary" id="gasExtraTabs" role="radiogroup" aria-label="기체 모델 보조 방정식"></div>
+        </div>
+
+        <div class="chart-area">
+          <canvas id="gasCanvas" aria-label="기체 누적 부피 0~12시간 모델링 그래프"></canvas>
+          <div class="chart-tooltip" id="gasTooltip" hidden></div>
+        </div>
+
+        <div class="formula-strip">
+          <div class="formula-top">
+            <span class="formula-name" id="gasFormulaName">힐 방정식 (Hill)</span>
+            <button type="button" class="btn-link" id="btnCopyGasFormula">수식 복사</button>
+          </div>
+          <code class="formula-expr" id="gasFormulaSubstituted"></code>
+          <div class="formula-details">
+            <span id="gasFormulaGeneral"></span>
+            <span class="sep">·</span>
+            <span id="gasFormulaConstants"></span>
+          </div>
+          <p class="formula-desc" id="gasFormulaNote"></p>
+        </div>
+
+        <div class="table-section">
+          <div class="table-toolbar">
+            <h3>시간별 누적 기체 부피 (0h ~ 12h)</h3>
+            <button type="button" class="btn-link" id="btnCopyGasTable">표 복사 (엑셀·PPT)</button>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="gasTable"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 분석 섹션 B: 산성화 (pH) -->
+      <section class="analysis-block" id="phSection" aria-labelledby="phHeading">
+        <div class="block-header">
+          <div>
+            <span class="block-kicker ph">종양세포 모사 · 유산균 발효</span>
+            <h2 id="phHeading">산성화 (pH) 0~12시간 모델링</h2>
+          </div>
+          <div class="block-actions">
+            <button type="button" class="btn-outline" id="btnSyncPhModel">
+              기체와 같은 방정식
+            </button>
+            <button type="button" class="btn-teal" id="btnExportPhPng">
+              pH 그래프 PNG 저장
+            </button>
+          </div>
+        </div>
+
+        <div class="model-selector-row">
+          <div class="segmented" id="phCoreTabs" role="radiogroup" aria-label="pH 모델 핵심 방정식"></div>
+          <div class="segmented secondary" id="phExtraTabs" role="radiogroup" aria-label="pH 모델 보조 방정식"></div>
+        </div>
+
+        <div class="chart-area">
+          <canvas id="phCanvas" aria-label="pH 변화 0~12시간 모델링 그래프"></canvas>
+          <div class="chart-tooltip" id="phTooltip" hidden></div>
+        </div>
+
+        <div class="formula-strip">
+          <div class="formula-top">
+            <span class="formula-name" id="phFormulaName">힐 방정식 (Hill)</span>
+            <button type="button" class="btn-link" id="btnCopyPhFormula">수식 복사</button>
+          </div>
+          <code class="formula-expr" id="phFormulaSubstituted"></code>
+          <div class="formula-details">
+            <span id="phFormulaGeneral"></span>
+            <span class="sep">·</span>
+            <span id="phFormulaConstants"></span>
+          </div>
+          <p class="formula-desc" id="phFormulaNote"></p>
+        </div>
+
+        <div class="table-section">
+          <div class="table-toolbar">
+            <h3>시간별 pH 경과 (0h ~ 12h)</h3>
+            <button type="button" class="btn-link" id="btnCopyPhTable">표 복사 (엑셀·PPT)</button>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="phTable"></table>
+          </div>
+        </div>
+      </section>
+
+      <footer class="sheet-footer">
+        인천대학교 수학교육과 · 효모–유산균 항종양 모사 실험 분석 도구
+      </footer>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="./config.js"></script>
+  <script src="./models.js"></script>
+  <script src="./chart.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
